@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { 
   BookOpen, Code2, AlertTriangle, Sparkles, CheckCircle2, History, Settings, 
-  HelpCircle, ChevronRight, Play, ArrowLeft, RefreshCw, X, Eye, ThumbsUp, 
-  FileText, Check, AlertCircle, Info, Layers, User, Cpu, Lightbulb, Split, 
+  HelpCircle, ChevronRight, Play, RefreshCw, X, Eye, ThumbsUp, 
+  FileText, Check, Info, Layers, User, Cpu, Lightbulb, Split, 
   RotateCcw, Compass, ExternalLink, MessageSquare, Terminal, ShieldAlert, Award
 } from 'lucide-react';
 
@@ -142,7 +142,7 @@ export default function App() {
   const [loadingText, setLoadingText] = useState("Analizando solicitud...");
 
   // Task-specific persistence states
-  const [generateStep, setGenerateStep] = useState('form'); // 'form', 'request', 'summary', 'result'
+  const [generateStep, setGenerateStep] = useState('form'); // Three stages: form, confirm, result
   const [generateForm, setGenerateForm] = useState({
     objective: "",
     behaviors: [] as string[],
@@ -151,17 +151,18 @@ export default function App() {
     constraints: "",
     explanationLevel: "",
     additionalDetails: "",
-    directMode: false,
+    directMode: true,
     directRequest: "",
     requestDraft: ""
   });
 
   const [fixStep, setFixStep] = useState('form'); // 'form', 'result', 'diff'
   const [fixForm, setFixForm] = useState({
-    expected: "Al hacer clic en el botón, debe desplegarse el menú principal.",
-    actual: "Al hacer clic en el botón no sucede absolutamente nada.",
-    code: `<button id="menuBtn" class="btn-primary">Abrir Menú</button>\n\n// JavaScript\nconst boton = document.querySelector("#menu");\nboton.addEventListener("click", toggleMenu);`,
-    errorMessage: "Uncaught TypeError: Cannot read properties of null (reading 'addEventListener')"
+    problem: "",
+    expected: "",
+    actual: "",
+    code: "",
+    errorMessage: ""
   });
 
   const [designOption, setDesignOption] = useState(null);
@@ -737,26 +738,31 @@ function ProjectPage({ projectContext, setProjectContext, showToast }) {
 }
 
 // ==========================================================
-// TAREA 1 — GENERAR UNA FUNCIONALIDAD (6 STEPS + SUMMARY)
+// TAREA 1 — GENERAR UNA FUNCIONALIDAD (6 OPTIONAL GUIDE QUESTIONS, 3 STAGES)
 // ==========================================================
 function GeneratePage({ step, setStep, form, setForm, triggerAi, showToast, codeInspection, setCodeInspection }) {
-  const [isEditingRequest, setIsEditingRequest] = useState(false);
+  const [isRequestEdited, setIsRequestEdited] = useState(false);
+
+  const updateForm = (updates) => {
+    setForm({ ...form, ...updates });
+    setIsRequestEdited(false);
+  };
   
   const handleBehaviorToggle = (item) => {
     const exists = form.behaviors.includes(item);
     if (exists) {
-      setForm({ ...form, behaviors: form.behaviors.filter(b => b !== item) });
+      updateForm({ behaviors: form.behaviors.filter(b => b !== item) });
     } else {
-      setForm({ ...form, behaviors: [...form.behaviors, item] });
+      updateForm({ behaviors: [...form.behaviors, item] });
     }
   };
 
   const handleTechToggle = (item) => {
     const exists = form.techs.includes(item);
     if (exists) {
-      setForm({ ...form, techs: form.techs.filter(t => t !== item) });
+      updateForm({ techs: form.techs.filter(t => t !== item) });
     } else {
-      setForm({ ...form, techs: [...form.techs, item] });
+      updateForm({ techs: [...form.techs, item] });
     }
   };
 
@@ -776,9 +782,8 @@ function GeneratePage({ step, setStep, form, setForm, triggerAi, showToast, code
   };
 
   const startRequestReview = () => {
-    setForm({ ...form, requestDraft: buildPrompt() });
-    setIsEditingRequest(false);
-    setStep('request');
+    setForm({ ...form, requestDraft: isRequestEdited ? form.requestDraft : buildPrompt() });
+    setStep('confirm');
   };
 
   return (
@@ -791,13 +796,11 @@ function GeneratePage({ step, setStep, form, setForm, triggerAi, showToast, code
           <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-800 text-xs font-semibold">Generar Funcionalidad</span>
         </div>
         <div className="flex flex-wrap items-center gap-2 text-[10px] sm:text-xs font-medium text-slate-500">
-          <span className={step === 'form' ? 'text-blue-600 font-bold' : ''}>1. Guía opcional</span>
+          <span className={step === 'form' ? 'text-blue-600 font-bold' : ''}>1. Definir solicitud</span>
           <span>→</span>
-          <span className={step === 'request' ? 'text-blue-600 font-bold' : ''}>2. Tu solicitud</span>
+          <span className={step === 'confirm' ? 'text-blue-600 font-bold' : ''}>2. Revisa y confirma</span>
           <span>→</span>
-          <span className={step === 'summary' ? 'text-blue-600 font-bold' : ''}>3. Esto entendí</span>
-          <span>→</span>
-          <span className={step === 'result' ? 'text-blue-600 font-bold' : ''}>4. Solución CODE JR</span>
+          <span className={step === 'result' ? 'text-blue-600 font-bold' : ''}>3. Solución CODE JR</span>
         </div>
       </div>
 
@@ -815,7 +818,7 @@ function GeneratePage({ step, setStep, form, setForm, triggerAi, showToast, code
               <input
                 type="checkbox"
                 checked={form.directMode}
-                onChange={(e) => setForm({ ...form, directMode: e.target.checked })}
+                onChange={(e) => updateForm({ directMode: e.target.checked })}
                 className="mt-0.5 rounded text-blue-600 focus:ring-blue-500"
               />
               <span>
@@ -830,7 +833,7 @@ function GeneratePage({ step, setStep, form, setForm, triggerAi, showToast, code
                 <textarea
                   id="direct-request"
                   value={form.directRequest}
-                  onChange={(e) => setForm({ ...form, directRequest: e.target.value })}
+                  onChange={(e) => updateForm({ directRequest: e.target.value })}
                   className="w-full min-h-32 px-3.5 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm resize-y"
                   placeholder="Cuéntame con tus propias palabras qué quieres crear o resolver."
                 />
@@ -847,7 +850,7 @@ function GeneratePage({ step, setStep, form, setForm, triggerAi, showToast, code
                   <textarea
                     id="generate-objective"
                     value={form.objective}
-                    onChange={(e) => setForm({ ...form, objective: e.target.value })}
+                    onChange={(e) => updateForm({ objective: e.target.value })}
                     className="w-full min-h-24 px-3.5 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm resize-y"
                     placeholder="Ej. Quiero crear un formulario de registro que valide el correo y la contraseña."
                   />
@@ -867,7 +870,7 @@ function GeneratePage({ step, setStep, form, setForm, triggerAi, showToast, code
 
                 <div className="space-y-1.5">
                   <label htmlFor="generate-location" className="text-xs font-bold text-slate-700 uppercase tracking-wider block">Paso 3 — ¿Dónde se utilizará?</label>
-                  <select id="generate-location" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white">
+                  <select id="generate-location" value={form.location} onChange={(e) => updateForm({ location: e.target.value })} className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white">
                     <option value="">Sin especificar</option>
                     <option value="Página de registro">Página de registro</option>
                     <option value="Página principal">Página principal</option>
@@ -891,14 +894,14 @@ function GeneratePage({ step, setStep, form, setForm, triggerAi, showToast, code
 
                 <div className="space-y-1.5">
                   <label htmlFor="generate-constraints" className="text-xs font-bold text-slate-700 uppercase tracking-wider block">Paso 5 — Restricciones (opcional)</label>
-                  <input id="generate-constraints" type="text" value={form.constraints} onChange={(e) => setForm({ ...form, constraints: e.target.value })} className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="Ej. No utilizar React ni librerías externas." />
+                  <input id="generate-constraints" type="text" value={form.constraints} onChange={(e) => updateForm({ constraints: e.target.value })} className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="Ej. No utilizar React ni librerías externas." />
                 </div>
 
                 <div className="space-y-1.5">
                   <span className="text-xs font-bold text-slate-700 uppercase tracking-wider block">Paso 6 — ¿Cómo quieres que te explique la solución?</span>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     {["Muy sencillo", "Para desarrollador junior", "Técnico"].map((lvl) => (
-                      <button key={lvl} type="button" onClick={() => setForm({ ...form, explanationLevel: form.explanationLevel === lvl ? "" : lvl })} className={`p-2.5 rounded-lg text-xs font-semibold border text-center transition-all ${form.explanationLevel === lvl ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'}`}>
+                      <button key={lvl} type="button" onClick={() => updateForm({ explanationLevel: form.explanationLevel === lvl ? "" : lvl })} className={`p-2.5 rounded-lg text-xs font-semibold border text-center transition-all ${form.explanationLevel === lvl ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'}`}>
                         {lvl}
                       </button>
                     ))}
@@ -912,7 +915,7 @@ function GeneratePage({ step, setStep, form, setForm, triggerAi, showToast, code
               <textarea
                 id="generate-additional"
                 value={form.additionalDetails}
-                onChange={(e) => setForm({ ...form, additionalDetails: e.target.value })}
+                onChange={(e) => updateForm({ additionalDetails: e.target.value })}
                 className="w-full min-h-24 px-3.5 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm resize-y"
                 placeholder="Por ejemplo: quiero que el mensaje aparezca debajo del campo y que el diseño sea sencillo."
               />
@@ -929,89 +932,54 @@ function GeneratePage({ step, setStep, form, setForm, triggerAi, showToast, code
               }}
               className="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-semibold text-sm transition-colors flex items-center space-x-2"
             >
-              <span>Revisar mi solicitud</span>
+              <span>Continuar a revisión</span>
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
         </div>
       )}
 
-      {/* STEP 2: EDITABLE REQUEST */}
-      {step === 'request' && (
-        <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm space-y-5 animate-fade-in">
+      {/* STEP 2: REVIEW AND CONFIRM THE EDITABLE REQUEST */}
+      {step === 'confirm' && (
+        <div className="bg-white rounded-xl p-6 border-2 border-blue-400 shadow-md space-y-5 animate-fade-in">
           <div>
-            <h2 className="text-xl font-bold text-slate-900">Tu solicitud</h2>
-            <p className="text-xs text-slate-500 mt-1">CODE JR reunió lo que compartiste. Puedes editar el texto directamente; tú decides qué quieres pedir.</p>
+            <h2 className="text-xl font-bold text-slate-900">Revisa y confirma tu solicitud</h2>
+            <p className="text-xs text-slate-500 mt-1">CODE JR estructuró tu idea. Puedes editar el texto directamente antes de generar la solución si deseas ajustar algún detalle.</p>
+          </div>
+
+          <div id="request-draft-guidance" className="flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 p-3.5 text-blue-950" role="note">
+            <Info className="w-5 h-5 shrink-0 text-blue-600 mt-0.5" aria-hidden="true" />
+            <p className="text-sm leading-relaxed">CODE JR estructuró tu solicitud. Revisa si la interpretación es correcta o edita el texto libremente.</p>
           </div>
 
           <textarea
             id="request-draft"
             value={form.requestDraft}
-            readOnly={!isEditingRequest}
-            onChange={(e) => setForm({ ...form, requestDraft: e.target.value })}
-            className={`w-full min-h-40 px-4 py-3 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm leading-relaxed resize-y ${isEditingRequest ? 'border-blue-300 bg-white' : 'border-slate-200 bg-slate-50'}`}
+            onChange={(e) => {
+              setForm({ ...form, requestDraft: e.target.value });
+              setIsRequestEdited(true);
+            }}
+            className="w-full min-h-48 px-4 py-3 rounded-lg border border-slate-300 bg-white text-slate-800 text-sm leading-relaxed placeholder:text-slate-400 resize-y transition-colors focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-200"
             placeholder="Escribe aquí lo que quieres pedirle a CODE JR."
-            aria-label="Solicitud final"
+            aria-label="Solicitud para confirmar"
+            aria-describedby="request-draft-guidance"
           />
 
-          <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-100">
-            <button onClick={() => setStep('form')} className="px-4 py-2 border border-slate-300 text-slate-700 hover:bg-slate-100 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2">
-              <ArrowLeft className="w-4 h-4" />
-              <span>Modificar formulario</span>
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-100">
+            <button onClick={() => setStep('form')} className="px-4 py-2 border border-slate-300 text-slate-700 hover:bg-slate-100 rounded-lg text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">
+              ← Volver a la guía / editar formulario
             </button>
-            <div className="flex items-center gap-2">
-              <button onClick={() => setIsEditingRequest(true)} disabled={isEditingRequest} className="px-4 py-2 border border-blue-300 text-blue-700 hover:bg-blue-50 disabled:opacity-50 disabled:cursor-default rounded-lg text-sm font-semibold transition-colors">
-                Editar solicitud
-              </button>
-              <button onClick={() => setStep('summary')} className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-semibold transition-colors flex items-center gap-2">
-                <span>Continuar</span>
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* STEP 2: RESUMEN DE INTENCIÓN ("ESTO ES LO QUE ENTENDÍ") */}
-      {step === 'summary' && (
-        <div className="bg-white rounded-xl p-6 border-2 border-blue-400 shadow-md space-y-6 animate-fade-in">
-          <div className="flex items-center space-x-3 text-blue-700">
-            <Info className="w-6 h-6 flex-shrink-0" />
-            <div>
-              <h2 className="text-xl font-bold text-slate-900">Esto es lo que entendí</h2>
-              <p className="text-xs text-slate-500">Revisa si esta interpretación coincide con lo que necesitas. Puedes corregirla antes de ver la respuesta.</p>
-            </div>
-          </div>
-
-          <div className="bg-slate-50 rounded-lg p-4 border border-slate-200 space-y-2">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Solicitud que CODE JR entendió</span>
-            <p className="text-sm leading-relaxed text-slate-800 whitespace-pre-wrap">{form.requestDraft || "Aún no has escrito una solicitud."}</p>
-          </div>
-
-          <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-xs flex items-center space-x-2">
-            <AlertCircle className="w-4 h-4 flex-shrink-0 text-amber-600" />
-            <span>¿Esto representa lo que quieres hacer exactamente?</span>
-          </div>
-
-          <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
             <button
               onClick={() => {
-                setStep('form');
-                showToast("Puedes ajustar las preguntas opcionales.", "info");
+                triggerAi(() => {
+                  setStep('result');
+                  showToast("✓ Solución simulada generada exitosamente.");
+                }, "Generando solución óptima para desarrollador junior...");
               }}
-              className="px-4 py-2 border border-slate-300 text-slate-700 hover:bg-slate-100 rounded-lg text-sm font-semibold transition-colors flex items-center space-x-2"
+              className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-sm font-semibold transition-colors flex items-center gap-2 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 active:scale-[0.98]"
             >
-              <RotateCcw className="w-4 h-4" />
-              <span>Modificar formulario</span>
+              Generar solución CODE JR →
             </button>
-
-            <div className="flex items-center gap-2">
-              <button onClick={() => { setIsEditingRequest(true); setStep('request'); }} className="px-4 py-2 border border-blue-300 text-blue-700 hover:bg-blue-50 rounded-lg text-sm font-semibold transition-colors">Editar solicitud</button>
-              <button onClick={() => { triggerAi(() => { setStep('result'); showToast("✓ Solución simulada generada exitosamente."); }, "Generando solución óptima para desarrollador junior..."); }} className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-sm font-semibold transition-colors flex items-center space-x-2 shadow-sm">
-                <Check className="w-4 h-4" />
-                <span>Continuar</span>
-              </button>
-            </div>
           </div>
         </div>
       )}
@@ -1123,6 +1091,14 @@ function GeneratePage({ step, setStep, form, setForm, triggerAi, showToast, code
 // TAREA 2 — CORREGIR UN ERROR (FORM + CODE DIFF VIEWER)
 // ==========================================================
 function FixErrorPage({ step, setStep, form, setForm, triggerAi, showToast }) {
+  const guidedDetails = [
+    form.expected.trim() ? `¿Qué esperabas? ${form.expected.trim()}` : "",
+    form.actual.trim() ? `¿Qué ocurre realmente? ${form.actual.trim()}` : "",
+    form.code.trim() ? `Código relacionado:\n${form.code.trim()}` : "",
+    form.errorMessage.trim() ? `Mensaje de consola: ${form.errorMessage.trim()}` : ""
+  ].filter(Boolean);
+  const completedProblem = [form.problem.trim(), ...guidedDetails].filter(Boolean).join("\n\n");
+
   return (
     <div className="max-w-4xl mx-auto space-y-6">
 
@@ -1142,50 +1118,84 @@ function FixErrorPage({ step, setStep, form, setForm, triggerAi, showToast }) {
         <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm space-y-5">
           <div>
             <h2 className="text-xl font-bold text-slate-900">Cuéntame qué está pasando</h2>
-            <p className="text-xs text-slate-500">Ingresa lo que observas para comparar el comportamiento real contra el esperado.</p>
+            <p className="text-xs text-slate-500 mt-1">Cuéntalo con tus propias palabras. Si quieres, puedes agregar más detalles en las preguntas opcionales.</p>
           </div>
 
-          <div className="space-y-4">
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-slate-700 uppercase">¿Qué esperabas que ocurriera?</label>
-              <input
-                type="text"
-                value={form.expected}
-                onChange={(e) => setForm({ ...form, expected: e.target.value })}
-                className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-rose-500"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-slate-700 uppercase">¿Qué está ocurriendo realmente?</label>
-              <input
-                type="text"
-                value={form.actual}
-                onChange={(e) => setForm({ ...form, actual: e.target.value })}
-                className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-rose-500"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-slate-700 uppercase">Código relacionado</label>
-              <textarea
-                rows={4}
-                value={form.code}
-                onChange={(e) => setForm({ ...form, code: e.target.value })}
-                className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm font-mono focus:ring-2 focus:ring-rose-500"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-slate-700 uppercase">Mensaje de error de la consola (Opcional)</label>
-              <input
-                type="text"
-                value={form.errorMessage}
-                onChange={(e) => setForm({ ...form, errorMessage: e.target.value })}
-                className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm font-mono text-rose-600 focus:ring-2 focus:ring-rose-500"
-              />
-            </div>
+          <div className="space-y-1.5">
+            <label htmlFor="fix-problem" className="text-xs font-bold text-slate-700 uppercase tracking-wider">Describe tu problema o pega tu código/error aquí</label>
+            <textarea
+              id="fix-problem"
+              rows={8}
+              value={form.problem}
+              onChange={(e) => setForm({ ...form, problem: e.target.value })}
+              className="w-full min-h-48 px-3.5 py-3 rounded-lg border border-slate-300 bg-white text-sm text-slate-800 leading-relaxed font-mono focus:outline-none focus:ring-2 focus:ring-rose-300 focus:border-rose-400 resize-y"
+              placeholder={'Describe qué sucede, pega el código relacionado o copia aquí el mensaje de error.\n\nEjemplo: Al hacer clic en el botón no sucede nada. La consola muestra un error en addEventListener.'}
+            />
           </div>
+
+          <details className="rounded-lg border border-slate-200 bg-slate-50">
+            <summary className="px-4 py-3 text-sm font-semibold text-slate-700 cursor-pointer hover:bg-slate-100 rounded-lg">
+              🔍 Ayúdame a detallar el problema (Opcional)
+            </summary>
+            <div className="p-4 pt-1 space-y-4">
+              <p className="text-xs text-slate-500">Completa solo lo que ayude a explicar el problema. Estos detalles se agregarán a tu descripción.</p>
+
+              <div className="space-y-1.5">
+                <label htmlFor="fix-expected" className="text-xs font-bold text-slate-700 uppercase">¿Qué esperabas?</label>
+                <input
+                  id="fix-expected"
+                  type="text"
+                  value={form.expected}
+                  onChange={(e) => setForm({ ...form, expected: e.target.value })}
+                  className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 bg-white text-sm focus:ring-2 focus:ring-rose-300 focus:border-rose-400"
+                  placeholder="Ej. Al hacer clic, debía abrirse el menú."
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label htmlFor="fix-actual" className="text-xs font-bold text-slate-700 uppercase">¿Qué ocurre realmente?</label>
+                <input
+                  id="fix-actual"
+                  type="text"
+                  value={form.actual}
+                  onChange={(e) => setForm({ ...form, actual: e.target.value })}
+                  className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 bg-white text-sm focus:ring-2 focus:ring-rose-300 focus:border-rose-400"
+                  placeholder="Ej. Al hacer clic no sucede nada."
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label htmlFor="fix-code" className="text-xs font-bold text-slate-700 uppercase">Código relacionado</label>
+                <textarea
+                  id="fix-code"
+                  rows={4}
+                  value={form.code}
+                  onChange={(e) => setForm({ ...form, code: e.target.value })}
+                  className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 bg-white text-sm font-mono focus:ring-2 focus:ring-rose-300 focus:border-rose-400"
+                  placeholder={'Pega aquí el fragmento relacionado.\nEj. boton.addEventListener("click", abrirMenu);'}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label htmlFor="fix-console" className="text-xs font-bold text-slate-700 uppercase">Mensaje de consola</label>
+                <input
+                  id="fix-console"
+                  type="text"
+                  value={form.errorMessage}
+                  onChange={(e) => setForm({ ...form, errorMessage: e.target.value })}
+                  className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 bg-white text-sm font-mono text-rose-700 focus:ring-2 focus:ring-rose-300 focus:border-rose-400"
+                  placeholder="Pega el mensaje de error si aparece uno."
+                />
+              </div>
+            </div>
+          </details>
+
+          {guidedDetails.length > 0 && (
+            <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-4 space-y-1.5 animate-fade-in">
+              <span className="block text-xs font-bold uppercase tracking-wider text-indigo-800">Descripción complementada</span>
+              <p className="text-sm leading-relaxed text-indigo-950 whitespace-pre-wrap">{completedProblem}</p>
+            </div>
+          )}
 
           <div className="pt-3 border-t border-slate-100 flex justify-end">
             <button
