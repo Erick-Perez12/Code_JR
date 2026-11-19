@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { 
   BookOpen, Code2, AlertTriangle, Sparkles, CheckCircle2, History, Settings, 
-  HelpCircle, ChevronRight, Play, RefreshCw, X, Eye, ThumbsUp, 
+  HelpCircle, ChevronRight, Play, RefreshCw, X, Eye, ThumbsUp, Search, 
   FileText, Check, Info, Layers, User, Cpu, Lightbulb, Split, 
-  RotateCcw, Compass, ExternalLink, MessageSquare, Terminal, ShieldAlert, Award
+  RotateCcw, Compass, ExternalLink, MessageSquare, Terminal, ShieldAlert, Award, ChevronDown
 } from 'lucide-react';
 
 // ==========================================
 // MOCK DATA & STATE DEFINITIONS
 // ==========================================
 const INITIAL_PROJECT_CONTEXT = {
+  id: "project-tienda-online",
   name: "Tienda Online",
   objective: "Crear una tienda online sencilla para practicar desarrollo web frontend.",
   technologies: ["HTML5", "CSS3", "JavaScript (ES6+)"],
@@ -20,6 +21,12 @@ const INITIAL_PROJECT_CONTEXT = {
     { id: 2, title: "Diseño Responsive", desc: "Adaptable a móviles y escritorio mediante Media Queries", status: "confirmed" },
     { id: 3, title: "Validación de Correo", desc: "Comprobación básica de sintaxis de email en cliente", status: "confirmed" },
     { id: 4, title: "Uso de Frameworks", desc: "No utilizar React ni librerías pesadas en esta fase", status: "rejected" }
+  ],
+  history: [
+    { step: 1, title: "Creación del formulario", date: "Hace 2 horas", status: "Completado" },
+    { step: 2, title: "Validación de correo electrónico", date: "Hace 1 hora", status: "Completado" },
+    { step: 3, title: "Corrección de listener en botón menuBtn", date: "Hace 30 min", status: "Completado" },
+    { step: 4, title: "Mejora de interfaz visual (Opción B)", date: "Hace 10 min", status: "En progreso" }
   ]
 };
 
@@ -134,9 +141,18 @@ const HCI_PAPER_CITATIONS = [
 // ==========================================
 export default function App() {
   const [activeTab, setActiveTab] = useState('home');
-  const [projectContext, setProjectContext] = useState(INITIAL_PROJECT_CONTEXT);
+  const [projects, setProjects] = useState([INITIAL_PROJECT_CONTEXT]);
+  const [activeProjectId, setActiveProjectId] = useState(INITIAL_PROJECT_CONTEXT.id);
+  const projectContext = projects.find((project) => project.id === activeProjectId) || projects[0];
+  const setProjectContext = (updatedContext) => {
+    setProjects((currentProjects) => currentProjects.map((project) => (
+      project.id === activeProjectId ? { ...updatedContext, id: activeProjectId } : project
+    )));
+  };
   const [toastMessage, setToastMessage] = useState(null);
   const [isContextModalOpen, setIsContextModalOpen] = useState(false);
+  const [isProjectDropdownOpen, setIsProjectDropdownOpen] = useState(false);
+  const [isCreateProjectModalOpen, setIsCreateProjectModalOpen] = useState(false);
   const [isHciModalOpen, setIsHciModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingText, setLoadingText] = useState("Analizando solicitud...");
@@ -189,6 +205,34 @@ export default function App() {
       setIsLoading(false);
       onComplete();
     }, 900);
+  };
+
+  const selectProject = (project) => {
+    setActiveProjectId(project.id);
+    setIsProjectDropdownOpen(false);
+    showToast(`✓ Proyecto '${project.name}' seleccionado.`);
+  };
+
+  const createProject = ({ name, objective, technologies }) => {
+    const newProject = {
+      id: `project-${Date.now()}`,
+      name,
+      objective,
+      technologies,
+      files: ["index.html", "style.css", "script.js"],
+      currentTask: "Inicio del proyecto",
+      decisions: [
+        { id: 1, title: "Objetivo principal", desc: objective, status: "confirmed" },
+        { id: 2, title: "Tecnologías iniciales", desc: technologies.length ? technologies.join(" + ") : "Por definir", status: "confirmed" }
+      ],
+      history: [{ step: 1, title: "Creación del proyecto", date: "Ahora", status: "Completado" }]
+    };
+
+    setProjects((currentProjects) => [...currentProjects, newProject]);
+    setActiveProjectId(newProject.id);
+    setIsCreateProjectModalOpen(false);
+    setActiveTab('project');
+    showToast(`✓ Proyecto '${name}' creado y seleccionado`);
   };
 
   return (
@@ -338,13 +382,52 @@ export default function App() {
         {/* TOP SYSTEM BAR */}
         <header className="h-14 bg-white border-b border-slate-200 px-6 flex items-center justify-between shadow-sm z-10 flex-shrink-0">
           <div className="flex items-center space-x-3">
-            <span className="text-xs font-semibold px-2 py-1 bg-slate-100 text-slate-600 rounded border border-slate-200">
-              Proyecto Activo:
-            </span>
-            <span className="font-bold text-slate-900 text-sm flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-              {projectContext.name}
-            </span>
+            <div className="relative">
+              <button
+                type="button"
+                aria-haspopup="menu"
+                aria-expanded={isProjectDropdownOpen}
+                onClick={() => setIsProjectDropdownOpen(!isProjectDropdownOpen)}
+                className="font-bold text-slate-900 text-sm flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors"
+              >
+                <span className="text-xs font-semibold px-2 py-1 bg-slate-100 text-slate-600 rounded border border-slate-200">Proyecto Activo:</span>
+                <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
+                <span className="max-w-40 truncate">{projectContext.name}</span>
+                <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform ${isProjectDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {isProjectDropdownOpen && (
+                <div role="menu" className="absolute left-0 top-full mt-2 w-72 max-w-[90vw] bg-white border border-slate-200 rounded-xl shadow-xl p-2 z-40 animate-fade-in">
+                  <p className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">Proyectos guardados</p>
+                  <div className="max-h-64 overflow-y-auto">
+                    {projects.map((project) => (
+                      <button
+                        key={project.id}
+                        type="button"
+                        role="menuitem"
+                        onClick={() => selectProject(project)}
+                        className={`w-full text-left px-3 py-2.5 rounded-lg flex items-start justify-between gap-3 transition-colors ${project.id === activeProjectId ? 'bg-blue-50 text-blue-800' : 'text-slate-700 hover:bg-slate-50'}`}
+                      >
+                        <span className="min-w-0">
+                          <span className="block text-sm font-semibold truncate">{project.name}</span>
+                          <span className="block text-[11px] text-slate-500 truncate">{project.objective}</span>
+                        </span>
+                        {project.id === activeProjectId && <Check className="w-4 h-4 shrink-0 mt-0.5 text-blue-600" />}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="mt-2 pt-2 border-t border-slate-100">
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => { setIsProjectDropdownOpen(false); setIsCreateProjectModalOpen(true); }}
+                      className="w-full text-left px-3 py-2.5 rounded-lg text-sm font-semibold text-blue-700 hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors"
+                    >
+                      + Crear nuevo proyecto
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
             <span className="text-slate-300">|</span>
             <span className="text-xs text-slate-500">
               Tarea actual: <strong className="text-slate-700 font-medium">{projectContext.currentTask}</strong>
@@ -399,6 +482,7 @@ export default function App() {
               projectContext={projectContext}
               setProjectContext={setProjectContext}
               showToast={showToast}
+              onNewProject={() => setIsCreateProjectModalOpen(true)}
             />
           )}
 
@@ -490,6 +574,13 @@ export default function App() {
           setProjectContext={setProjectContext}
           onClose={() => setIsContextModalOpen(false)}
           showToast={showToast}
+        />
+      )}
+
+      {isCreateProjectModalOpen && (
+        <CreateProjectModal
+          onClose={() => setIsCreateProjectModalOpen(false)}
+          onCreate={createProject}
         />
       )}
 
@@ -648,7 +739,7 @@ function HomePage({ setActiveTab, projectContext }) {
           <div>
             <span className="text-xs text-slate-400 uppercase tracking-wider font-semibold">Continúa donde lo dejaste</span>
             <h4 className="font-bold text-base text-slate-100">{projectContext.currentTask}</h4>
-            <p className="text-xs text-slate-400">Último estado: Paso 1 completado en Tienda Online</p>
+            <p className="text-xs text-slate-400">{projectContext.history.length === 1 ? "Proyecto creado recientemente" : `Último estado: Paso 1 completado en ${projectContext.name}`}</p>
           </div>
         </div>
 
@@ -668,7 +759,7 @@ function HomePage({ setActiveTab, projectContext }) {
 // ==========================================================
 // PANTALLA CONTEXTO DEL PROYECTO (MI PROYECTO)
 // ==========================================================
-function ProjectPage({ projectContext, setProjectContext, showToast }) {
+function ProjectPage({ projectContext, setProjectContext, showToast, onNewProject }) {
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm space-y-4">
@@ -677,9 +768,18 @@ function ProjectPage({ projectContext, setProjectContext, showToast }) {
             <h1 className="text-2xl font-bold text-slate-900">{projectContext.name}</h1>
             <p className="text-sm text-slate-500 mt-0.5">{projectContext.objective}</p>
           </div>
-          <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-semibold">
-            En Desarrollo Activo
-          </span>
+          <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2">
+            <button
+              type="button"
+              onClick={onNewProject}
+              className="px-3.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+            >
+              + Nuevo proyecto
+            </button>
+            <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-semibold">
+              En Desarrollo Activo
+            </span>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
@@ -1582,15 +1682,109 @@ function ImproveDesignPage({ selectedOption, setSelectedOption, analyzed, setAna
 // ==========================================================
 function LearnPage({ level, setLevel, quizAnswer, setQuizAnswer, showToast }) {
   const data = MOCK_RESPONSES.learn.asyncAwait;
+  const [screen, setScreen] = useState('search');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [activeConcept, setActiveConcept] = useState(data.title);
+  const categories = ["JavaScript", "HTML", "CSS", "DOM", "APIs"];
+  const suggestions = [
+    { text: "Quiero entender por qué mi código espera antes de mostrar datos", concept: "async/await" },
+    { text: "¿Qué es una Promise y cuándo se utiliza?", concept: "Promises" },
+    { text: "¿Cómo puedo esperar a que termine una operación?", concept: "async/await" }
+  ];
+
+  const openConcept = (concept) => {
+    const selectedConcept = concept.trim();
+    if (!selectedConcept) return;
+    setActiveConcept(selectedConcept);
+    setSearchTerm(selectedConcept);
+    setQuizAnswer(null);
+    setScreen('learning');
+  };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-5xl mx-auto">
+      {screen === 'search' ? (
+        <div className="max-w-3xl mx-auto space-y-5 animate-fade-in">
+          <div className="text-center space-y-2 py-4">
+            <span className="text-xs font-bold text-emerald-600 uppercase tracking-wider">Aprender un concepto</span>
+            <h1 className="text-2xl font-bold text-slate-900">¿Qué te gustaría aprender?</h1>
+            <p className="text-sm text-slate-500">Busca un tema o elige una categoría para empezar.</p>
+          </div>
+
+          <form
+            onSubmit={(event) => { event.preventDefault(); openConcept(searchTerm); }}
+            className="bg-white rounded-2xl border border-slate-200 shadow-md p-3 flex flex-col sm:flex-row gap-2 focus-within:ring-2 focus-within:ring-emerald-200 focus-within:border-emerald-400"
+          >
+            <label htmlFor="learn-search" className="sr-only">Buscar un concepto, tecnología o tema</label>
+            <input
+              id="learn-search"
+              type="search"
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              placeholder="🔍 Busca un concepto, tecnología o tema (ej. async/await, Flexbox, Promises, DOM)..."
+              className="min-w-0 flex-1 px-3 py-3 rounded-lg text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none"
+            />
+            <button
+              type="submit"
+              disabled={!searchTerm.trim()}
+              className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Search className="w-4 h-4" />
+              Buscar
+            </button>
+          </form>
+
+          <section className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm space-y-3">
+            <h2 className="text-sm font-bold text-slate-800">Explora por categoría</h2>
+            <div className="flex flex-wrap gap-2">
+              {categories.map((category) => (
+                <button
+                  key={category}
+                  type="button"
+                  onClick={() => openConcept(category)}
+                  className="px-4 py-2 rounded-full border border-emerald-200 bg-emerald-50 text-emerald-800 text-xs font-semibold hover:bg-emerald-100 hover:border-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 active:scale-[0.98] transition-all"
+                >
+                  {category}
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <section className="space-y-3">
+            <div>
+              <h2 className="text-sm font-bold text-slate-800">Sugerencias populares</h2>
+              <p className="text-xs text-slate-500 mt-1">También puedes empezar con una pregunta común.</p>
+            </div>
+            <div className="space-y-2">
+              {suggestions.map((suggestion) => (
+                <button
+                  key={suggestion.text}
+                  type="button"
+                  onClick={() => openConcept(suggestion.concept)}
+                  className="w-full flex items-center justify-between gap-3 text-left p-4 rounded-xl bg-white border border-slate-200 text-sm text-slate-700 hover:border-emerald-300 hover:bg-emerald-50/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 active:scale-[0.99] transition-all"
+                >
+                  <span>{suggestion.text}</span>
+                  <ChevronRight className="w-4 h-4 shrink-0 text-emerald-600" />
+                </button>
+              ))}
+            </div>
+          </section>
+        </div>
+      ) : (
+      <div className="max-w-4xl mx-auto space-y-4 animate-fade-in">
+        <button
+          type="button"
+          onClick={() => setScreen('search')}
+          className="inline-flex items-center px-3 py-2 rounded-lg text-xs font-semibold text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 transition-colors"
+        >
+          ← Volver a la búsqueda
+        </button>
 
       <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm space-y-5">
         <div className="flex items-center justify-between">
           <div>
             <span className="text-xs font-bold text-emerald-600 uppercase tracking-wider">Aprender Concepto</span>
-            <h1 className="text-2xl font-bold text-slate-900">{data.title}</h1>
+            <h1 className="text-2xl font-bold text-slate-900 break-words">{activeConcept}</h1>
           </div>
           <span className="px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full text-xs font-semibold">
             Modo Educativo Junior
@@ -1679,7 +1873,8 @@ function LearnPage({ level, setLevel, quizAnswer, setQuizAnswer, showToast }) {
 
         </div>
       </div>
-
+      </div>
+      )}
     </div>
   );
 }
@@ -1790,12 +1985,7 @@ function HistoryPage({ projectContext, showToast }) {
 
         {/* Timeline */}
         <div className="space-y-4 pt-2">
-          {[
-            { step: 1, title: "Creación del formulario", date: "Hace 2 horas", status: "Completado" },
-            { step: 2, title: "Validación de correo electrónico", date: "Hace 1 hora", status: "Completado" },
-            { step: 3, title: "Corrección de listener en botón menuBtn", date: "Hace 30 min", status: "Completado" },
-            { step: 4, title: "Mejora de interfaz visual (Opción B)", date: "Hace 10 min", status: "En progreso" }
-          ].map((item) => (
+          {projectContext.history.map((item) => (
             <div key={item.step} className="flex items-start space-x-3 p-3 bg-slate-50 border border-slate-200 rounded-lg">
               <div className="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs flex-shrink-0 mt-0.5">
                 {item.step}
@@ -1825,6 +2015,83 @@ function HistoryPage({ projectContext, showToast }) {
 // ==========================================================
 // MODAL: CONTEXTO "LO QUE CODE JR RECUERDA" (CHEN ET AL. 2026)
 // ==========================================================
+function CreateProjectModal({ onClose, onCreate }) {
+  const [name, setName] = useState("");
+  const [objective, setObjective] = useState("");
+  const [technologies, setTechnologies] = useState(["HTML", "CSS", "JavaScript"]);
+  const technologyOptions = ["HTML", "CSS", "JavaScript", "TypeScript", "React", "Tailwind CSS"];
+
+  const toggleTechnology = (technology) => {
+    setTechnologies((current) => current.includes(technology)
+      ? current.filter((item) => item !== technology)
+      : [...current, technology]);
+  };
+
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    if (!name.trim() || !objective.trim()) return;
+    onCreate({ name: name.trim(), objective: objective.trim(), technologies });
+  };
+
+  return (
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+      <form onSubmit={handleSubmit} className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 shadow-2xl space-y-5 animate-fade-in" role="dialog" aria-modal="true" aria-labelledby="create-project-title">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div>
+            <span className="text-xs font-bold uppercase tracking-wider text-blue-600">Nuevo espacio de trabajo</span>
+            <h2 id="create-project-title" className="text-xl font-bold text-slate-900 mt-1">Crear nuevo proyecto</h2>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Cerrar" className="text-slate-400 hover:text-slate-700 p-1 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <label htmlFor="new-project-name" className="block text-xs font-bold text-slate-700">Nombre del proyecto</label>
+            <input id="new-project-name" type="text" required autoFocus value={name} onChange={(event) => setName(event.target.value)} placeholder="Ej. Mi portafolio" className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400" />
+          </div>
+
+          <div className="space-y-1.5">
+            <label htmlFor="new-project-objective" className="block text-xs font-bold text-slate-700">Objetivo principal</label>
+            <input id="new-project-objective" type="text" required value={objective} onChange={(event) => setObjective(event.target.value)} placeholder="Ej. Aprender eventos en JS" className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400" />
+          </div>
+
+          <fieldset className="space-y-2">
+            <legend className="text-xs font-bold text-slate-700">Tecnologías</legend>
+            <div className="flex flex-wrap gap-2">
+              {technologyOptions.map((technology) => {
+                const isSelected = technologies.includes(technology);
+                return (
+                  <button key={technology} type="button" aria-pressed={isSelected} onClick={() => toggleTechnology(technology)} className={`px-3 py-1.5 rounded-full border text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ${isSelected ? 'bg-blue-100 border-blue-400 text-blue-800' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'}`}>
+                    {isSelected ? "✓ " : "+ "}{technology}
+                  </button>
+                );
+              })}
+            </div>
+          </fieldset>
+
+          <div className="space-y-2">
+            <span className="block text-xs font-bold text-slate-700">Archivos iniciales</span>
+            <div className="flex flex-wrap gap-2">
+              {["index.html", "style.css", "script.js"].map((file) => (
+                <span key={file} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-slate-50 border border-slate-200 text-[11px] text-slate-600 font-mono">
+                  <FileText className="w-3 h-3 text-blue-500" />{file}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+          <button type="button" onClick={onClose} className="px-4 py-2 border border-slate-300 text-slate-700 hover:bg-slate-100 rounded-lg text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400">Cancelar</button>
+          <button type="submit" disabled={!name.trim() || !objective.trim()} className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:hover:bg-blue-600 text-white rounded-lg text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">Crear proyecto</button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
 function ContextModal({ projectContext, setProjectContext, onClose, showToast }) {
   const [editingTech, setEditingTech] = useState(projectContext.technologies.join(", "));
 
